@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "Ellipse TradeShow",
+    "slug": "ellipse-tradeshow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "ellipse-tradeshow",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "la.ellipse.tradeshow",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used to capture badges, business cards, and portrait photos.",
+        "NSMicrophoneUsageDescription": "Microphone is used to record conversations during trade show encounters.",
+        "NSPhotoLibraryUsageDescription": "Photo library access is used to import badge and business card photos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "la.ellipse.tradeshow",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-camera",
+      "expo-av",
+      "expo-image-picker",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1a1a2e",
+          "image": "./assets/splash.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "26dffcf8-3854-4d95-923b-28983f8f9cc9"
+      },
+      "router": {
+        "origin": false
+      }
+    },
+    "owner": "cylal"
+  }
+}
