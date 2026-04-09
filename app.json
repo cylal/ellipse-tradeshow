@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Ellipse TradeShow",
+    "name": "Ellipse Field Activity",
     "slug": "ellipse-tradeshow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "scheme": "ellipse-tradeshow",
+    "scheme": "la.ellipse.tradeshow",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1a1a2e"
+      "backgroundColor": "#C41E2A"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -18,17 +18,19 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "la.ellipse.tradeshow",
-      "buildNumber": "1",
+      "buildNumber": "3",
       "infoPlist": {
         "NSCameraUsageDescription": "Camera is used to capture badges, business cards, and portrait photos.",
         "NSMicrophoneUsageDescription": "Microphone is used to record conversations during trade show encounters.",
-        "NSPhotoLibraryUsageDescription": "Photo library access is used to import badge and business card photos."
+        "NSPhotoLibraryUsageDescription": "Photo library access is used to import badge and business card photos.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Face ID allows you to sign in quickly without re-entering your password."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1a1a2e"
+        "backgroundColor": "#C41E2A"
       },
       "package": "la.ellipse.tradeshow",
       "permissions": [
@@ -46,7 +48,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1a1a2e",
+          "backgroundColor": "#C41E2A",
           "image": "./assets/splash.png",
           "imageWidth": 200
         }
