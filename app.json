@@ -41,6 +41,16 @@
     },
     "plugins": [
       ["./plugins/withKotlinVersion", "1.9.25"],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "packagingOptions": {
+              "pickFirst": ["**/libreactnative.so"]
+            }
+          }
+        }
+      ],
       "expo-router",
       "expo-camera",
       "expo-av",
