@@ -2,7 +2,9 @@
 
 export type Region = "NORAM" | "LATAM" | "APAC" | "EMEA";
 export type TradeShowEventStatus = "upcoming" | "active" | "completed";
-export type EncounterType = "meeting" | "booth_visit" | "networking" | "presentation" | "other";
+export type EncounterType = "meeting" | "booth_visit" | "other";
+export type EncounterContext = "tradeshow" | "meeting" | "quick_contact";
+export type MeetingType = "in_person" | "remote";
 export type CaptureMode = "audio" | "manual" | "both";
 export type PhotoType = "badge" | "business_card" | "portrait";
 
@@ -82,6 +84,9 @@ export interface Encounter {
   aiActionItems?: string[];
   aiSentiment?: "positive" | "neutral" | "cautious" | "negative";
   aiFollowUpSuggestion?: string;
+  context?: EncounterContext;
+  meetingType?: MeetingType;
+  meetingLink?: string;
   syncedToCrm: boolean;
   crmActivityIds?: string[];
   linkedAccountId?: string;
@@ -89,8 +94,26 @@ export interface Encounter {
   tags?: string[];
   priority?: "high" | "medium" | "low";
   followUpDate?: string;
+  tasks?: EncounterTask[];
   userId: string;
   userName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Tasks ──────────────────────────────────────────────────────────────────
+
+export type TaskStatus = "todo" | "in_progress" | "done";
+
+export interface EncounterTask {
+  id: string;
+  encounterId: string;
+  description: string;
+  status: TaskStatus;
+  priority: "high" | "medium" | "low";
+  dueDate?: string;
+  assignee?: string;
+  crmTaskId?: string;
   createdAt: string;
   updatedAt: string;
 }

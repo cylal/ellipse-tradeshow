@@ -9,13 +9,16 @@ type CardProps = {
   shadow?: "sm" | "md" | "lg";
   /** Left border accent color */
   accentColor?: string;
+  /** Glass morphism feel — lighter bg with border */
+  glass?: boolean;
 };
 
-export function Card({ children, onPress, style, shadow = "sm", accentColor }: CardProps) {
+export function Card({ children, onPress, style, shadow = "sm", accentColor, glass }: CardProps) {
   const cardStyle = [
     styles.card,
     SHADOWS[shadow],
     accentColor && { borderLeftWidth: 4, borderLeftColor: accentColor },
+    glass && styles.glass,
     style,
   ];
 
@@ -35,5 +38,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  glass: {
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderColor: COLORS.borderAccent,
   },
 });

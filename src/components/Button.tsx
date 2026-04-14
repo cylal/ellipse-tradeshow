@@ -1,11 +1,11 @@
 import React from "react";
 import {
   TouchableOpacity, Text, ActivityIndicator,
-  StyleSheet, ViewStyle, TextStyle,
+  StyleSheet, ViewStyle,
 } from "react-native";
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from "../constants/theme";
 
-type ButtonVariant = "primary" | "danger" | "outline";
+type ButtonVariant = "primary" | "danger" | "outline" | "ghost";
 
 type ButtonProps = {
   title: string;
@@ -14,12 +14,14 @@ type ButtonProps = {
   disabled?: boolean;
   variant?: ButtonVariant;
   style?: ViewStyle;
+  icon?: React.ReactNode;
 };
 
 const VARIANT_STYLES: Record<ButtonVariant, { bg: string; text: string; border?: string }> = {
   primary: { bg: COLORS.accent, text: COLORS.textInverse },
-  danger: { bg: COLORS.error + "10", text: COLORS.error, border: COLORS.error + "30" },
-  outline: { bg: "transparent", text: COLORS.accent, border: COLORS.accent },
+  danger: { bg: COLORS.errorLight, text: COLORS.error, border: COLORS.error + "40" },
+  outline: { bg: "transparent", text: COLORS.accent, border: COLORS.accent + "50" },
+  ghost: { bg: "transparent", text: COLORS.textSecondary },
 };
 
 export function Button({
@@ -29,6 +31,7 @@ export function Button({
   disabled = false,
   variant = "primary",
   style,
+  icon,
 }: ButtonProps) {
   const v = VARIANT_STYLES[variant];
 
@@ -37,8 +40,8 @@ export function Button({
       style={[
         styles.button,
         { backgroundColor: v.bg },
-        v.border && { borderWidth: 1, borderColor: v.border },
-        variant === "primary" && SHADOWS.md,
+        v.border && { borderWidth: 1.5, borderColor: v.border },
+        variant === "primary" && SHADOWS.glow,
         (disabled || loading) && styles.disabled,
         style,
       ]}
@@ -49,7 +52,10 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={v.text} />
       ) : (
-        <Text style={[styles.buttonText, { color: v.text }]}>{title}</Text>
+        <>
+          {icon}
+          <Text style={[styles.buttonText, { color: v.text }, icon && { marginLeft: 8 }]}>{title}</Text>
+        </>
       )}
     </TouchableOpacity>
   );
@@ -58,14 +64,18 @@ export function Button({
 const styles = StyleSheet.create({
   button: {
     borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.lg,
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.xl,
     alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
   },
   buttonText: {
     fontSize: FONT_SIZES.md,
     fontWeight: "700",
+    letterSpacing: 0.3,
   },
   disabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
 });

@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useEventStore } from "../../src/stores/eventStore";
-import { ChipGroup, Button, Input } from "../../src/components";
+import { ChipGroup, Button, Input, DatePicker } from "../../src/components";
 import { COLORS, SPACING, FONT_SIZES } from "../../src/constants/theme";
+import { format } from "date-fns";
 import type { Region } from "../../src/types";
 
 const REGIONS: { value: Region; label: string }[] = [
@@ -19,8 +20,8 @@ export default function NewEventScreen() {
 
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [boothNumber, setBoothNumber] = useState("");
   const [description, setDescription] = useState("");
   const [region, setRegion] = useState<Region>("EMEA");
@@ -28,11 +29,15 @@ export default function NewEventScreen() {
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      Alert.alert("Erreur", "Le nom du salon est requis.");
+      Alert.alert("Error", "Event name is required.");
       return;
     }
     if (!startDate || !endDate) {
-      Alert.alert("Erreur", "Les dates de début et fin sont requises (format: YYYY-MM-DD).");
+      Alert.alert("Error", "Start and end dates are required.");
+      return;
+    }
+    if (endDate < startDate) {
+      Alert.alert("Error", "End date must be after start date.");
       return;
     }
 
@@ -41,17 +46,21 @@ export default function NewEventScreen() {
       const event = await createEvent({
         name: name.trim(),
         location: location.trim() || undefined,
-        startDate,
-        endDate,
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(endDate, "yyyy-MM-dd"),
         boothNumber: boothNumber.trim() || undefined,
         description: description.trim() || undefined,
         region,
       });
-      Alert.alert("Salon créé", `"${event.name}" a été créé avec succès.`, [
+      Alert.alert("Event Created", `"${event.name}" has been created successfully.`, [
         { text: "OK", onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      Alert.alert("Erreur", err.message);
+      const msg =
+        typeof err?.message === "string"
+          ? err.message
+          : "Unable to create event. Check your connection.";
+      Alert.alert("Error", msg);
     } finally {
       setSaving(false);
     }
@@ -60,14 +69,14 @@ export default function NewEventScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Input
-        label="Nom du salon *"
+        label="Event Name *"
         placeholder="Ex: CES 2026, MWC Barcelona"
         value={name}
         onChangeText={setName}
       />
 
       <Input
-        label="Lieu"
+        label="Location"
         placeholder="Ex: Las Vegas, NV"
         value={location}
         onChangeText={setLocation}
@@ -75,31 +84,32 @@ export default function NewEventScreen() {
 
       <View style={styles.row}>
         <View style={styles.halfField}>
-          <Input
-            label="Date début *"
-            placeholder="YYYY-MM-DD"
+          <DatePicker
+            label="Start Date *"
             value={startDate}
-            onChangeText={setStartDate}
+            onChange={setStartDate}
+            placeholder="Start"
           />
         </View>
         <View style={styles.halfField}>
-          <Input
-            label="Date fin *"
-            placeholder="YYYY-MM-DD"
+          <DatePicker
+            label="End Date *"
             value={endDate}
-            onChangeText={setEndDate}
+            onChange={setEndDate}
+            placeholder="End"
+            minimumDate={startDate || undefined}
           />
         </View>
       </View>
 
       <Input
-        label="N° de stand"
+        label="Booth Number"
         placeholder="Ex: Hall 5, Stand B42"
         value={boothNumber}
         onChangeText={setBoothNumber}
       />
 
-      <Text style={styles.label}>Région</Text>
+      <Text style={styles.label}>Region</Text>
       <ChipGroup
         options={REGIONS}
         selected={region}
@@ -108,7 +118,7 @@ export default function NewEventScreen() {
 
       <Input
         label="Description"
-        placeholder="Description, objectifs du salon..."
+        placeholder="Description, event objectives..."
         value={description}
         onChangeText={setDescription}
         multiline
@@ -116,7 +126,7 @@ export default function NewEventScreen() {
       />
 
       <Button
-        title="Créer le salon"
+        title="Create Event"
         onPress={handleCreate}
         loading={saving}
         style={{ marginTop: SPACING.xxl }}

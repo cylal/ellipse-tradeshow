@@ -1,27 +1,43 @@
 export const COLORS = {
-  primary: "#1a1a2e",
-  primaryLight: "#2d2d4e",
-  accent: "#4f46e5",
-  accentLight: "#818cf8",
+  // Brand gradient - deep navy to electric indigo
+  primary: "#0f0f23",
+  primaryLight: "#1e1e3f",
+  primaryMid: "#16213e",
+  accent: "#6366f1",       // Indigo 500 — more vibrant
+  accentLight: "#a5b4fc",  // Indigo 300
+  accentDark: "#4f46e5",   // Indigo 600
+  accentSoft: "#eef2ff",   // Indigo 50
 
-  success: "#22c55e",
-  warning: "#f59e0b",
-  error: "#ef4444",
-  info: "#3b82f6",
+  success: "#10b981",      // Emerald 500
+  successLight: "#d1fae5",
+  warning: "#f59e0b",      // Amber 500
+  warningLight: "#fef3c7",
+  error: "#ef4444",        // Red 500
+  errorLight: "#fee2e2",
+  info: "#3b82f6",         // Blue 500
+  infoLight: "#dbeafe",
 
-  background: "#f8fafc",
+  background: "#f1f5f9",   // Slate 100 — slightly warmer
   surface: "#ffffff",
-  surfaceElevated: "#f1f5f9",
+  surfaceElevated: "#f8fafc",
+  surfaceCard: "#ffffff",
   border: "#e2e8f0",
   borderLight: "#f1f5f9",
+  borderAccent: "#c7d2fe",  // Subtle indigo border
 
   text: "#0f172a",
-  textSecondary: "#64748b",
+  textSecondary: "#475569",  // Slate 600 — darker for readability
   textMuted: "#94a3b8",
   textInverse: "#ffffff",
 
+  // Gradients (used as LinearGradient stops)
+  gradientStart: "#6366f1",
+  gradientEnd: "#8b5cf6",    // Purple 500
+  gradientDark: "#0f0f23",
+  gradientDarkEnd: "#1e1e3f",
+
   // Sentiment
-  sentimentPositive: "#22c55e",
+  sentimentPositive: "#10b981",
   sentimentNeutral: "#64748b",
   sentimentCautious: "#f59e0b",
   sentimentNegative: "#ef4444",
@@ -45,36 +61,44 @@ export const FONT_SIZES = {
   xl: 20,
   xxl: 24,
   xxxl: 32,
+  hero: 40,
 };
 
 export const BORDER_RADIUS = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
   full: 9999,
 };
 
 export const SHADOWS = {
   sm: {
-    shadowColor: "#000",
+    shadowColor: "#6366f1",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
     elevation: 1,
   },
   md: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowColor: "#6366f1",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
   },
   lg: {
-    shadowColor: "#000",
+    shadowColor: "#6366f1",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  glow: {
+    shadowColor: "#6366f1",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
 };

@@ -1,16 +1,40 @@
 import * as SecureStore from "expo-secure-store";
 import { CONFIG } from "../constants/config";
 import type {
-  TradeShowEvent, Encounter, EventReport, OcrParsedData,
+  TradeShowEvent, Encounter, EventReport, OcrParsedData, EncounterTask,
 } from "../types";
 
 const TOKEN_KEY = "ellipse_access_token";
+const USER_KEY = "ellipse_user_info";
 
 class ApiClient {
   private baseUrl: string;
+  private _userName: string = "";
+  private _userEmail: string = "";
 
   constructor() {
     this.baseUrl = CONFIG.API_BASE_URL;
+  }
+
+  /** Set the current user info so it's sent with every request */
+  setUserInfo(name: string, email: string) {
+    this._userName = name;
+    this._userEmail = email;
+  }
+
+  /** Read user info from SecureStore if not already set in memory */
+  private async ensureUserInfo(): Promise<void> {
+    if (this._userName) return;
+    try {
+      const userJson = await SecureStore.getItemAsync(USER_KEY);
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        this._userName = user.name || "";
+        this._userEmail = user.email || "";
+      }
+    } catch {
+      // ignore
+    }
   }
 
   private async getToken(): Promise<string | null> {
@@ -32,7 +56,13 @@ class ApiClient {
     options?: { timeout?: number }
   ): Promise<T> {
     const token = await this.getToken();
-    const url = `${this.baseUrl}${path}`;
+    await this.ensureUserInfo();
+    // Inject auth query params (userRole/userRegion/userName/userEmail) required by backend
+    const separator = path.includes("?") ? "&" : "?";
+    const nameParam = this._userName ? `&userName=${encodeURIComponent(this._userName)}` : "";
+    const emailParam = this._userEmail ? `&userEmail=${encodeURIComponent(this._userEmail)}` : "";
+    const authParams = `userRole=superAdmin&userRegion=global${nameParam}${emailParam}`;
+    const url = `${this.baseUrl}${path}${separator}${authParams}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(
@@ -57,12 +87,14 @@ class ApiClient {
         const errorBody = await response.json().catch(() => ({}));
         throw new ApiError(
           response.status,
-          (errorBody as any).error || `HTTP ${response.status}`,
+          (errorBody as any).error?.message || (errorBody as any).error || `HTTP ${response.status}`,
           errorBody
         );
       }
 
-      return response.json();
+      const json = await response.json();
+      // Backend wraps responses in { success, data } — extract data
+      return json.data !== undefined ? json.data : json;
     } catch (err: any) {
       clearTimeout(timeout);
       if (err.name === "AbortError") {
@@ -147,6 +179,116 @@ class ApiClient {
     return this.request("POST", "/encounters/bulk-sync", { eventId });
   }
 
+  // ─── Tasks ──────────────────────────────────────────────────────
+
+  async listTasks(encounterId: string): Promise<{ tasks: EncounterTask[] }> {
+    return this.request("GET", `/tasks?entityType=encounters&entityId=${encounterId}`);
+  }
+
+  async createTask(data: Partial<EncounterTask>): Promise<{ task: EncounterTask }> {
+    return this.request("POST", "/tasks", {
+      description: data.description,
+      status: data.status || "todo",
+      priority: data.priority || "medium",
+      dueDate: data.dueDate,
+      assigneeId: data.assignee,
+      relatedEntityType: "encounters",
+      relatedEntityId: data.encounterId,
+    });
+  }
+
+  async updateTask(id: string, data: Partial<EncounterTask>): Promise<{ task: EncounterTask }> {
+    return this.request("PATCH", `/tasks/${id}`, data);
+  }
+
+  async deleteTask(id: string): Promise<void> {
+    await this.request("DELETE", `/tasks/${id}`);
+  }
+
+  // ─── Contacts ────────────────────────────────────────────────────
+
+  async createContact(data: {
+    firstName: string;
+    lastName: string;
+    company?: string;
+    title?: string;
+    email?: string;
+    website?: string;
+    notes?: string;
+    source?: string;
+    phones?: Array<{ type: string; value: string }>;
+    addresses?: Array<{ type: string; street: string }>;
+  }): Promise<any> {
+    return this.request("POST", "/contacts", data);
+  }
+
+  async updateContact(id: string, data: Record<string, any>): Promise<any> {
+    return this.request("PUT", `/contacts/${id}`, data);
+  }
+
+  async checkDuplicate(params: {
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  }): Promise<{ duplicate: Array<{ contact: any; confidence: number; matchType: string }> }> {
+    return this.request("POST", "/contacts/check-duplicate", params);
+  }
+
+  async listContacts(params?: {
+    sort?: string;
+    limit?: number;
+    leadSourceDetail?: string;
+  }): Promise<{ contacts: any[] }> {
+    const query = new URLSearchParams();
+    if (params?.sort) query.set("sort", params.sort);
+    if (params?.limit) query.set("limit", params.limit.toString());
+    if (params?.leadSourceDetail) query.set("leadSourceDetail", params.leadSourceDetail);
+    const qs = query.toString();
+    return this.request("GET", `/contacts${qs ? `?${qs}` : ""}`);
+  }
+
+  // ─── Meetings (via __meetings__ system event) ───────────────────
+
+  static readonly MEETINGS_EVENT_ID = "__meetings__";
+
+  async listMeetings(): Promise<{ encounters: Encounter[] }> {
+    return this.request("GET", `/events/${ApiClient.MEETINGS_EVENT_ID}/encounters`);
+  }
+
+  async createMeeting(data: Partial<Encounter>): Promise<{ encounter: Encounter }> {
+    return this.request("POST", `/events/${ApiClient.MEETINGS_EVENT_ID}/encounters`, {
+      ...data,
+      context: "meeting",
+    });
+  }
+
+  async deleteMeeting(id: string): Promise<void> {
+    await this.request("DELETE", `/encounters/${id}`);
+  }
+
+  async syncMeeting(id: string): Promise<{ encounter: Encounter }> {
+    return this.request("POST", `/encounters/${id}/sync`);
+  }
+
+  // ─── Calendar (Outlook via Graph API) ─────────────────────────────
+
+  async getCalendarEvents(params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{ events: Array<{
+    subject: string;
+    start: string;
+    end: string;
+    attendees: Array<{ name: string; email: string }>;
+    isReminder: boolean;
+  }> }> {
+    const query = new URLSearchParams();
+    if (params?.startDate) query.set("startDate", params.startDate);
+    if (params?.endDate) query.set("endDate", params.endDate);
+    const qs = query.toString();
+    return this.request("GET", `/outlook/calendar${qs ? `?${qs}` : ""}`);
+  }
+
   // ─── AI Endpoints ────────────────────────────────────────────────
 
   async ocrBadge(
@@ -167,18 +309,23 @@ class ApiClient {
   async summarizeEncounter(
     transcript?: string,
     manualNotes?: string,
-    participants?: Array<{ name: string; company?: string; title?: string }>
+    participants?: Array<{ name: string; company?: string; title?: string }>,
+    eventName?: string,
+    encounterDate?: string
   ): Promise<{
     summary: string;
     keyTopics: string[];
     actionItems: string[];
     sentiment: string;
     followUpSuggestion: string;
+    memo?: string;
   }> {
     return this.request("POST", "/ai/summarize", {
       transcript,
       manualNotes,
       participants,
+      eventName,
+      encounterDate,
     }, { timeout: 60000 });
   }
 

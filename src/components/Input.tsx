@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, TextInput, StyleSheet, TextInputProps } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, Text, TextInput, StyleSheet, TextInputProps, NativeSyntheticEvent, TextInputContentSizeChangeEventData } from "react-native";
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from "../constants/theme";
 
 type InputProps = TextInputProps & {
@@ -8,14 +8,33 @@ type InputProps = TextInputProps & {
 };
 
 export function Input({ label, multiline, style, ...props }: InputProps) {
+  const [inputHeight, setInputHeight] = useState(multiline ? 120 : undefined);
+
+  const handleContentSizeChange = useCallback(
+    (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
+      if (multiline) {
+        const newHeight = Math.max(120, Math.min(e.nativeEvent.contentSize.height + 24, 400));
+        setInputHeight(newHeight);
+      }
+    },
+    [multiline]
+  );
+
   return (
     <View>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {!!label && <Text style={styles.label}>{label}</Text>}
       <TextInput
-        style={[styles.input, multiline && styles.textArea, style]}
+        style={[
+          styles.input,
+          multiline && styles.textArea,
+          multiline && inputHeight ? { height: inputHeight } : undefined,
+          style,
+        ]}
         placeholderTextColor={COLORS.textMuted}
         multiline={multiline}
         textAlignVertical={multiline ? "top" : "auto"}
+        onContentSizeChange={multiline ? handleContentSizeChange : undefined}
+        scrollEnabled={multiline}
         {...props}
       />
     </View>
@@ -40,6 +59,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   textArea: {
-    minHeight: 100,
+    minHeight: 120,
   },
 });

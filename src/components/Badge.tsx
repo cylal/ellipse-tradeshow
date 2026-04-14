@@ -6,36 +6,41 @@ type BadgeProps = {
   label: string;
   bg: string;
   color: string;
+  icon?: string;
 };
 
-export function Badge({ label, bg, color }: BadgeProps) {
+export function Badge({ label, bg, color, icon }: BadgeProps) {
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
+      {icon && <Text style={{ fontSize: 10, marginRight: 3 }}>{icon}</Text>}
       <Text style={[styles.text, { color }]}>{label}</Text>
     </View>
   );
 }
 
 /** Preconfigured status badges for events */
-const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-  upcoming: { bg: "#dbeafe", text: "#1d4ed8", label: "À venir" },
-  active: { bg: "#dcfce7", text: "#15803d", label: "En cours" },
-  completed: { bg: "#f1f5f9", text: "#64748b", label: "Terminé" },
+const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string; icon: string }> = {
+  upcoming: { bg: "#eef2ff", text: "#4f46e5", label: "Upcoming", icon: "◉" },
+  active: { bg: "#d1fae5", text: "#059669", label: "In Progress", icon: "●" },
+  completed: { bg: "#f1f5f9", text: "#64748b", label: "Completed", icon: "✓" },
 };
 
 export function StatusBadge({ status }: { status: string }) {
   const c = STATUS_CONFIG[status] || STATUS_CONFIG.upcoming;
-  return <Badge label={c.label} bg={c.bg} color={c.text} />;
+  return <Badge label={c.label} bg={c.bg} color={c.text} icon={c.icon} />;
 }
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 3,
     borderRadius: BORDER_RADIUS.full,
   },
   text: {
     fontSize: FONT_SIZES.xs,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 });

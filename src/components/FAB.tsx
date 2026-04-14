@@ -1,16 +1,17 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet } from "react-native";
+import { TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SHADOWS } from "../constants/theme";
 
 type FABProps = {
   onPress: () => void;
-  icon?: string;
+  icon?: keyof typeof Ionicons.glyphMap;
 };
 
-export function FAB({ onPress, icon = "+" }: FABProps) {
+export function FAB({ onPress, icon = "add" }: FABProps) {
   return (
-    <TouchableOpacity style={styles.fab} onPress={onPress} activeOpacity={0.8}>
-      <Text style={styles.fabText}>{icon}</Text>
+    <TouchableOpacity style={styles.fab} onPress={onPress} activeOpacity={0.85}>
+      <Ionicons name={icon} size={28} color={COLORS.textInverse} />
     </TouchableOpacity>
   );
 }
@@ -18,19 +19,14 @@ export function FAB({ onPress, icon = "+" }: FABProps) {
 const styles = StyleSheet.create({
   fab: {
     position: "absolute",
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: 28,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: COLORS.accent,
     alignItems: "center",
     justifyContent: "center",
-    ...SHADOWS.lg,
-  },
-  fabText: {
-    fontSize: 28,
-    color: COLORS.textInverse,
-    lineHeight: 30,
+    ...SHADOWS.glow,
   },
 });

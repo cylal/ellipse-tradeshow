@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
-import { COLORS } from "../../src/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
+import { COLORS, SHADOWS } from "../../src/constants/theme";
+import { Platform, View } from "react-native";
 
 export default function TabsLayout() {
   return (
@@ -10,36 +11,42 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarStyle: {
           backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          paddingBottom: 4,
-          height: 56,
+          borderTopWidth: 0,
+          paddingBottom: Platform.OS === "ios" ? 0 : 4,
+          height: Platform.OS === "ios" ? 88 : 60,
+          ...SHADOWS.md,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "600",
+          fontSize: 11,
+          fontWeight: "700",
+          letterSpacing: 0.3,
         },
-        headerStyle: { backgroundColor: COLORS.primary },
+        headerStyle: {
+          backgroundColor: COLORS.primary,
+          shadowColor: "transparent",
+          elevation: 0,
+        },
         headerTintColor: COLORS.textInverse,
-        headerTitleStyle: { fontWeight: "600" },
+        headerTitleStyle: { fontWeight: "700", fontSize: 17, letterSpacing: 0.3 },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Salons",
-          tabBarLabel: "Salons",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 22 }}>📅</Text>
+          title: "Ellipse Field",
+          tabBarLabel: "Home",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="quick-capture"
         options={{
-          title: "Capture",
-          tabBarLabel: "Capture",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 22 }}>📸</Text>
+          title: "Activity",
+          tabBarLabel: "Activity",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "time" : "time-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -48,18 +55,18 @@ export default function TabsLayout() {
         options={{
           title: "Sync",
           tabBarLabel: "Sync",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 22 }}>🔄</Text>
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "cloud-upload" : "cloud-upload-outline"} size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profil",
-          tabBarLabel: "Profil",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 22 }}>👤</Text>
+          title: "Profile",
+          tabBarLabel: "Profile",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "person-circle" : "person-circle-outline"} size={24} color={color} />
           ),
         }}
       />

@@ -1,6 +1,37 @@
 import { create } from "zustand";
-import { api } from "../services/api";
+import { api, ApiError } from "../services/api";
 import type { TradeShowEvent, Encounter, EventReport } from "../types";
+
+// Generate a simple unique ID for offline mode
+const generateId = () => `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+interface OcrScanResult {
+  parsed: {
+    name?: string;
+    company?: string;
+    title?: string;
+    email?: string;
+    phone?: string;
+    website?: string;
+    address?: string;
+  };
+  rawText: string;
+  photoUri?: string;
+  photoType: "badge" | "business_card";
+}
+
+export interface AudioResult {
+  audioUrl: string;
+  transcript: string;
+  summary?: string;
+  keyTopics?: string[];
+  actionItems?: string[];
+  sentiment?: string;
+  followUpSuggestion?: string;
+  memo?: string;
+  duration?: number;
+  mode: "live" | "dictation";
+}
 
 interface EventState {
   events: TradeShowEvent[];
@@ -8,7 +39,11 @@ interface EventState {
   encounters: Encounter[];
   report: EventReport | null;
   isLoading: boolean;
+  isOffline: boolean;
   error: string | null;
+  pendingOcrResult: OcrScanResult | null;
+  pendingAudioResult: AudioResult | null;
+  pendingPortraitUrl: string | null;
 
   // Event actions
   fetchEvents: (params?: { status?: string }) => Promise<void>;
@@ -29,6 +64,11 @@ interface EventState {
   bulkSync: (eventId: string) => Promise<{ synced: number; failed: number }>;
   fetchReport: (eventId: string) => Promise<void>;
 
+  // OCR & Audio & Portrait
+  setPendingOcrResult: (result: OcrScanResult | null) => void;
+  setPendingAudioResult: (result: AudioResult | null) => void;
+  setPendingPortraitUrl: (url: string | null) => void;
+
   clearError: () => void;
 }
 
@@ -38,7 +78,11 @@ export const useEventStore = create<EventState>((set, get) => ({
   encounters: [],
   report: null,
   isLoading: false,
+  isOffline: false,
   error: null,
+  pendingOcrResult: null,
+  pendingAudioResult: null,
+  pendingPortraitUrl: null,
 
   // ─── Events ──────────────────────────────────────────────────────
 
@@ -46,19 +90,26 @@ export const useEventStore = create<EventState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { events } = await api.listEvents(params);
-      set({ events, isLoading: false });
+      set({ events, isLoading: false, isOffline: false });
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+      // In offline mode, just show local events
+      set({ isLoading: false, isOffline: true });
     }
   },
 
   fetchEvent: async (id) => {
+    // Check local first
+    const local = get().events.find((e) => e.id === id);
+    if (local) {
+      set({ activeEvent: local });
+      return;
+    }
     set({ isLoading: true, error: null });
     try {
       const { event } = await api.getEvent(id);
       set({ activeEvent: event, isLoading: false });
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+      set({ isLoading: false });
     }
   },
 
@@ -71,11 +122,35 @@ export const useEventStore = create<EventState>((set, get) => ({
       set((state) => ({
         events: [event, ...state.events],
         isLoading: false,
+        isOffline: false,
       }));
       return event;
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
-      throw err;
+      // Offline fallback: create locally
+      const now = new Date().toISOString();
+      const localEvent: TradeShowEvent = {
+        id: generateId(),
+        name: data.name || "Untitled",
+        location: data.location,
+        startDate: data.startDate || now,
+        endDate: data.endDate || now,
+        boothNumber: data.boothNumber,
+        description: data.description,
+        region: data.region || "EMEA",
+        status: "upcoming",
+        encounterCount: 0,
+        contactsCollected: 0,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: "local",
+      } as TradeShowEvent;
+
+      set((state) => ({
+        events: [localEvent, ...state.events],
+        isLoading: false,
+        isOffline: true,
+      }));
+      return localEvent;
     }
   },
 
@@ -89,7 +164,18 @@ export const useEventStore = create<EventState>((set, get) => ({
         isLoading: false,
       }));
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+      // Offline fallback: update locally
+      set((state) => ({
+        events: state.events.map((e) =>
+          e.id === id ? { ...e, ...data, updatedAt: new Date().toISOString() } : e
+        ),
+        activeEvent:
+          state.activeEvent?.id === id
+            ? { ...state.activeEvent, ...data, updatedAt: new Date().toISOString() }
+            : state.activeEvent,
+        isLoading: false,
+        isOffline: true,
+      }));
     }
   },
 
@@ -97,14 +183,14 @@ export const useEventStore = create<EventState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await api.deleteEvent(id);
-      set((state) => ({
-        events: state.events.filter((e) => e.id !== id),
-        activeEvent: state.activeEvent?.id === id ? null : state.activeEvent,
-        isLoading: false,
-      }));
-    } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+    } catch {
+      // Continue with local delete even if API fails
     }
+    set((state) => ({
+      events: state.events.filter((e) => e.id !== id),
+      activeEvent: state.activeEvent?.id === id ? null : state.activeEvent,
+      isLoading: false,
+    }));
   },
 
   // ─── Encounters ──────────────────────────────────────────────────
@@ -115,7 +201,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       const { encounters } = await api.listEncounters(eventId, filters);
       set({ encounters, isLoading: false });
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+      set({ isLoading: false, isOffline: true });
     }
   },
 
@@ -129,8 +215,28 @@ export const useEventStore = create<EventState>((set, get) => ({
       }));
       return encounter;
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
-      throw err;
+      // Offline fallback
+      const now = new Date().toISOString();
+      const localEncounter: Encounter = {
+        id: generateId(),
+        eventId,
+        type: data.type || "conversation",
+        title: data.title || "New encounter",
+        notes: data.notes,
+        priority: data.priority || "medium",
+        participants: data.participants || [],
+        syncedToCrm: false,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: "local",
+      } as Encounter;
+
+      set((state) => ({
+        encounters: [localEncounter, ...state.encounters],
+        isLoading: false,
+        isOffline: true,
+      }));
+      return localEncounter;
     }
   },
 
@@ -143,7 +249,13 @@ export const useEventStore = create<EventState>((set, get) => ({
         isLoading: false,
       }));
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+      set((state) => ({
+        encounters: state.encounters.map((e) =>
+          e.id === id ? { ...e, ...data, updatedAt: new Date().toISOString() } : e
+        ),
+        isLoading: false,
+        isOffline: true,
+      }));
     }
   },
 
@@ -151,13 +263,13 @@ export const useEventStore = create<EventState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await api.deleteEncounter(id);
-      set((state) => ({
-        encounters: state.encounters.filter((e) => e.id !== id),
-        isLoading: false,
-      }));
-    } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+    } catch {
+      // Continue locally
     }
+    set((state) => ({
+      encounters: state.encounters.filter((e) => e.id !== id),
+      isLoading: false,
+    }));
   },
 
   // ─── Sync & Report ──────────────────────────────────────────────
@@ -169,7 +281,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         encounters: state.encounters.map((e) => (e.id === id ? encounter : e)),
       }));
     } catch (err: any) {
-      set({ error: err.message });
+      const msg = typeof err?.message === "string" ? err.message : "Sync failed — backend not connected.";
+      set({ error: msg });
     }
   },
 
@@ -177,13 +290,13 @@ export const useEventStore = create<EventState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const result = await api.bulkSync(eventId);
-      // Re-fetch encounters after sync
       await get().fetchEncounters(eventId);
       set({ isLoading: false });
       return result;
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
-      throw err;
+      const msg = typeof err?.message === "string" ? err.message : "Sync failed — backend not connected.";
+      set({ error: msg, isLoading: false });
+      throw new Error(msg);
     }
   },
 
@@ -193,9 +306,13 @@ export const useEventStore = create<EventState>((set, get) => ({
       const { report } = await api.getEventReport(eventId);
       set({ report, isLoading: false });
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+      set({ isLoading: false });
     }
   },
+
+  setPendingOcrResult: (result) => set({ pendingOcrResult: result }),
+  setPendingAudioResult: (result) => set({ pendingAudioResult: result }),
+  setPendingPortraitUrl: (url) => set({ pendingPortraitUrl: url }),
 
   clearError: () => set({ error: null }),
 }));

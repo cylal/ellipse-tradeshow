@@ -6,16 +6,20 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { api } from "../../src/services/api";
+import { useEventStore } from "../../src/stores/eventStore";
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from "../../src/constants/theme";
 import type { PhotoType } from "../../src/types";
 
 export default function CameraScreen() {
   const router = useRouter();
+  const { type: initialType } = useLocalSearchParams<{ type?: string }>();
   const cameraRef = useRef<any>(null);
+  const setPendingOcrResult = useEventStore((s) => s.setPendingOcrResult);
+  const setPendingPortraitUrl = useEventStore((s) => s.setPendingPortraitUrl);
   const [permission, requestPermission] = useCameraPermissions();
-  const [photoType, setPhotoType] = useState<PhotoType>("badge");
+  const [photoType, setPhotoType] = useState<PhotoType>((initialType as PhotoType) || "badge");
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState<any>(null);
@@ -28,10 +32,10 @@ export default function CameraScreen() {
     return (
       <View style={styles.permissionContainer}>
         <Text style={styles.permissionText}>
-          L'accès à la caméra est nécessaire pour prendre des photos de badges et cartes de visite.
+          Camera access is required to take photos of badges and business cards.
         </Text>
         <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.permissionButtonText}>Autoriser la caméra</Text>
+          <Text style={styles.permissionButtonText}>Allow Camera</Text>
         </TouchableOpacity>
       </View>
     );
@@ -47,7 +51,7 @@ export default function CameraScreen() {
       });
       setCapturedUri(photo.uri);
     } catch (err: any) {
-      Alert.alert("Erreur", "Impossible de prendre la photo.");
+      Alert.alert("Error", "Unable to take photo.");
     }
   };
 
@@ -79,21 +83,31 @@ export default function CameraScreen() {
       if (photoType !== "portrait") {
         const ocrData = await api.ocrBadge(uploadResult.imageUrl, photoType);
         setOcrResult(ocrData);
+
+        // Store OCR result in Zustand so quick-capture can use it
+        setPendingOcrResult({
+          parsed: ocrData.parsed,
+          rawText: ocrData.rawText,
+          photoUri: capturedUri,
+          photoType,
+        });
+
         Alert.alert(
-          "OCR terminé",
-          `Nom: ${ocrData.parsed.name || "—"}\nEntreprise: ${ocrData.parsed.company || "—"}\nTitre: ${ocrData.parsed.title || "—"}\nEmail: ${ocrData.parsed.email || "—"}`,
+          "Contact Detected",
+          `${ocrData.parsed.name || "Unknown name"}${ocrData.parsed.company ? `\n${ocrData.parsed.company}` : ""}${ocrData.parsed.title ? ` — ${ocrData.parsed.title}` : ""}${ocrData.parsed.email ? `\n${ocrData.parsed.email}` : ""}`,
           [
-            { text: "Reprendre", onPress: () => { setCapturedUri(null); setOcrResult(null); } },
-            { text: "Utiliser", onPress: () => router.back() },
+            { text: "Retake", onPress: () => { setCapturedUri(null); setOcrResult(null); setPendingOcrResult(null); } },
+            { text: "Add to contact", onPress: () => router.back() },
           ]
         );
       } else {
-        Alert.alert("Photo portrait enregistrée", "", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
+        // Portrait mode: store the uploaded URL so quick-capture can attach it to a participant
+        setPendingPortraitUrl(uploadResult.imageUrl);
+        // Navigate back immediately — the capture form will handle participant assignment
+        router.back();
       }
     } catch (err: any) {
-      Alert.alert("Erreur", err.message || "Échec du traitement.");
+      Alert.alert("Error", err.message || "Processing failed.");
     } finally {
       setProcessing(false);
     }
@@ -109,7 +123,7 @@ export default function CameraScreen() {
           <View style={styles.processingOverlay}>
             <ActivityIndicator size="large" color={COLORS.accent} />
             <Text style={styles.processingText}>
-              {photoType === "portrait" ? "Upload..." : "OCR en cours..."}
+              {photoType === "portrait" ? "Upload..." : "OCR processing..."}
             </Text>
           </View>
         ) : (
@@ -118,11 +132,11 @@ export default function CameraScreen() {
               style={styles.retakeButton}
               onPress={() => { setCapturedUri(null); setOcrResult(null); }}
             >
-              <Text style={styles.retakeText}>Reprendre</Text>
+              <Text style={styles.retakeText}>Retake</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.useButton} onPress={processPhoto}>
               <Text style={styles.useButtonText}>
-                {photoType === "portrait" ? "Enregistrer" : "Lancer OCR"}
+                {photoType === "portrait" ? "Save" : "Run OCR"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -144,7 +158,7 @@ export default function CameraScreen() {
           {(["badge", "business_card", "portrait"] as PhotoType[]).map((type) => {
             const labels: Record<PhotoType, string> = {
               badge: "Badge",
-              business_card: "Carte de visite",
+              business_card: "Business Card",
               portrait: "Portrait",
             };
             return (
@@ -166,7 +180,7 @@ export default function CameraScreen() {
           <View style={styles.guideOverlay}>
             <View style={styles.guideRect} />
             <Text style={styles.guideText}>
-              {photoType === "badge" ? "Cadrez le badge" : "Cadrez la carte de visite"}
+              {photoType === "badge" ? "Frame the badge" : "Frame the business card"}
             </Text>
           </View>
         )}
@@ -175,7 +189,7 @@ export default function CameraScreen() {
       {/* Controls */}
       <View style={styles.controls}>
         <TouchableOpacity style={styles.galleryButton} onPress={pickFromGallery}>
-          <Text style={styles.galleryText}>Galerie</Text>
+          <Text style={styles.galleryText}>Gallery</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
@@ -183,7 +197,7 @@ export default function CameraScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
-          <Text style={styles.closeText}>Fermer</Text>
+          <Text style={styles.closeText}>Close</Text>
         </TouchableOpacity>
       </View>
     </View>

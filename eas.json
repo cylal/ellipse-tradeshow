@@ -15,9 +15,13 @@
       "distribution": "internal",
       "ios": {
         "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
+      "autoIncrement": true,
       "ios": {
         "buildConfiguration": "Release"
       }
@@ -26,9 +30,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "clalo@ellipse.la",
-        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        "appleId": "apple@clalo.com",
+        "appleTeamId": "LQ7G6LFQ7B",
+        "ascAppId": "6761391906"
       }
     }
   }

@@ -1,221 +1,199 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert,
+  View, Text, TouchableOpacity, StyleSheet,
+  ScrollView, RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { useEventStore } from "../../src/stores/eventStore";
-import { Card, ChipGroup, Button, Input } from "../../src/components";
+import { api } from "../../src/services/api";
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from "../../src/constants/theme";
-import { CONFIG } from "../../src/constants/config";
-import type { TradeShowEvent, EncounterParticipant, EncounterType, CaptureMode } from "../../src/types";
+import type { Encounter } from "../../src/types";
 
-export default function QuickCaptureScreen() {
+const ITEM_THEMES = {
+  conference: { color: "#6366f1", bg: "#eef2ff", icon: "business" as const },
+  meeting: { color: "#10b981", bg: "#d1fae5", icon: "people" as const },
+  contact: { color: "#f97316", bg: "#ffedd5", icon: "person-add" as const },
+};
+
+function formatRelativeTime(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffH < 1) return "now";
+  if (diffH < 24) return `${diffH}h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD === 1) return "yesterday";
+  if (diffD < 7) return `${diffD}d`;
+  return `${Math.floor(diffD / 7)}w`;
+}
+
+interface ActivityItem {
+  id: string;
+  text: string;
+  detail: string;
+  time: string;
+  link: string;
+  type: "conference" | "meeting" | "contact";
+  sortDate: number;
+}
+
+export default function ActivityScreen() {
   const router = useRouter();
-  const { events, activeEvent, fetchEvents, createEncounter, setActiveEvent } = useEventStore();
+  const { events: rawEvents, fetchEvents } = useEventStore();
+  const events = rawEvents || [];
+  const [refreshing, setRefreshing] = useState(false);
+  const [recentMeetings, setRecentMeetings] = useState<Encounter[]>([]);
+  const [recentContacts, setRecentContacts] = useState<any[]>([]);
 
-  const [selectedEvent, setSelectedEvent] = useState<TradeShowEvent | null>(activeEvent);
-  const [title, setTitle] = useState("");
-  const [encounterType, setEncounterType] = useState<EncounterType>("meeting");
-  const [manualNotes, setManualNotes] = useState("");
-  const [participants, setParticipants] = useState<EncounterParticipant[]>([]);
-  const [priority, setPriority] = useState<"high" | "medium" | "low">("medium");
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    fetchEvents({ status: "active" });
-  }, []);
-
-  useEffect(() => {
-    if (!selectedEvent && events.length > 0) {
-      const active = events.find((e) => e.status === "active");
-      if (active) setSelectedEvent(active);
-    }
-  }, [events]);
-
-  const handleSave = async () => {
-    if (!selectedEvent) {
-      Alert.alert("Erreur", "Veuillez sélectionner un salon.");
-      return;
-    }
-    if (!title.trim()) {
-      Alert.alert("Erreur", "Veuillez donner un titre à la rencontre.");
-      return;
-    }
-
-    setIsSaving(true);
+  const loadActivity = useCallback(async () => {
+    await fetchEvents();
     try {
-      await createEncounter(selectedEvent.id, {
-        title: title.trim(),
-        encounterType,
-        timestamp: new Date().toISOString(),
-        participants,
-        captureMode: "manual" as CaptureMode,
-        manualNotes: manualNotes.trim() || undefined,
-        priority,
-      });
-      Alert.alert("Succès", "Rencontre enregistrée !", [
-        {
-          text: "OK",
-          onPress: () => {
-            setTitle("");
-            setManualNotes("");
-            setParticipants([]);
-          },
-        },
-      ]);
-    } catch (err: any) {
-      Alert.alert("Erreur", err.message || "Impossible de sauvegarder.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+      const meetingResult = await api.listMeetings();
+      setRecentMeetings(meetingResult?.encounters || []);
+    } catch {}
+    try {
+      const contactResult = await api.listContacts();
+      setRecentContacts(contactResult?.contacts || []);
+    } catch {}
+  }, [fetchEvents]);
 
-  const encounterTypeOptions = CONFIG.ENCOUNTER_TYPES.map((t) => ({
-    value: t.value,
-    label: t.label,
-  }));
+  useFocusEffect(
+    useCallback(() => {
+      loadActivity();
+    }, [loadActivity])
+  );
 
-  const priorityOptions = CONFIG.PRIORITY_OPTIONS.map((p) => ({
-    value: p.value,
-    label: p.label,
-    color: p.color,
-  }));
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadActivity();
+    setRefreshing(false);
+  }, [loadActivity]);
+
+  const items: ActivityItem[] = [
+    ...events.map(ev => ({
+      id: `ev_${ev.id}`,
+      text: ev.name,
+      detail: `${ev.encounterCount} encounter${ev.encounterCount !== 1 ? "s" : ""} · ${ev.location || ""}`,
+      time: formatRelativeTime(ev.updatedAt),
+      link: `/event/${ev.id}`,
+      type: "conference" as const,
+      sortDate: new Date(ev.updatedAt).getTime(),
+    })),
+    ...recentMeetings.map(m => ({
+      id: `mt_${m.id}`,
+      text: m.title,
+      detail: `Meeting · ${m.encounterType || ""}`,
+      time: formatRelativeTime(m.createdAt),
+      link: `/encounter/${m.id}`,
+      type: "meeting" as const,
+      sortDate: new Date(m.createdAt).getTime(),
+    })),
+    ...recentContacts.map((c: any) => ({
+      id: `ct_${c.id || c.contactId}`,
+      text: `${c.firstName} ${c.lastName}`,
+      detail: c.accountName || c.company || "Contact",
+      time: formatRelativeTime(c.createdAt),
+      link: "",
+      type: "contact" as const,
+      sortDate: new Date(c.createdAt).getTime(),
+    })),
+  ].sort((a, b) => b.sortDate - a.sortDate);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Event selector */}
-      {selectedEvent ? (
-        <TouchableOpacity
-          style={styles.eventBanner}
-          onPress={() => setSelectedEvent(null)}
-        >
-          <Text style={styles.eventBannerLabel}>Salon actif</Text>
-          <Text style={styles.eventBannerName}>{selectedEvent.name}</Text>
-          <Text style={styles.eventBannerChange}>Changer ▸</Text>
-        </TouchableOpacity>
-      ) : (
-        <Card style={styles.eventPicker}>
-          <Text style={styles.label}>Sélectionner un salon</Text>
-          {events.map((event) => (
-            <TouchableOpacity
-              key={event.id}
-              style={styles.eventOption}
-              onPress={() => setSelectedEvent(event)}
-            >
-              <Text style={styles.eventOptionText}>{event.name}</Text>
-              <Text style={styles.eventOptionDate}>
-                {event.location} · {event.status === "active" ? "En cours" : "À venir"}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </Card>
-      )}
-
-      <Input
-        label="Titre de la rencontre"
-        placeholder="Ex: RDV avec Samsung — Badge OCR demo"
-        value={title}
-        onChangeText={setTitle}
-      />
-
-      <Text style={styles.label}>Type</Text>
-      <ChipGroup
-        options={encounterTypeOptions}
-        selected={encounterType}
-        onSelect={(v) => setEncounterType(v as EncounterType)}
-      />
-
-      <Text style={styles.label}>Priorité</Text>
-      <ChipGroup
-        options={priorityOptions}
-        selected={priority}
-        onSelect={(v) => setPriority(v as any)}
-      />
-
-      {/* Quick actions */}
-      <Text style={styles.label}>Actions rapides</Text>
-      <View style={styles.actionRow}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => router.push("/capture/camera")}
-        >
-          <Text style={styles.actionIcon}>📷</Text>
-          <Text style={styles.actionLabel}>Badge / Carte</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => router.push("/capture/audio")}
-        >
-          <Text style={styles.actionIcon}>🎙️</Text>
-          <Text style={styles.actionLabel}>Audio AI</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => router.push("/capture/camera")}
-        >
-          <Text style={styles.actionIcon}>🤳</Text>
-          <Text style={styles.actionLabel}>Portrait</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Input
-        label="Notes"
-        placeholder="Notes sur la rencontre, sujets abordés..."
-        value={manualNotes}
-        onChangeText={setManualNotes}
-        multiline
-        numberOfLines={5}
-      />
-
-      <Button
-        title="Enregistrer la rencontre"
-        onPress={handleSave}
-        loading={isSaving}
-        style={{ marginTop: SPACING.xl }}
-      />
-    </ScrollView>
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
+        }
+      >
+        {items.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="time-outline" size={48} color={COLORS.textMuted} />
+            <Text style={styles.emptyTitle}>No activity yet</Text>
+            <Text style={styles.emptyDesc}>Your recent conferences, meetings, and contacts will appear here.</Text>
+          </View>
+        ) : (
+          items.map((item) => {
+            const theme = ITEM_THEMES[item.type];
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.activityItem}
+                onPress={() => item.link ? router.push(item.link as any) : undefined}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.itemIcon, { backgroundColor: theme.bg }]}>
+                  <Ionicons name={theme.icon} size={18} color={theme.color} />
+                </View>
+                <View style={styles.itemContent}>
+                  <Text style={styles.itemText} numberOfLines={1}>{item.text}</Text>
+                  <Text style={styles.itemDetail} numberOfLines={1}>{item.detail}</Text>
+                </View>
+                <Text style={styles.itemTime}>{item.time}</Text>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: SPACING.lg, paddingBottom: 60 },
-  label: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.sm,
-  },
-  eventBanner: {
-    backgroundColor: COLORS.accent + "15",
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.accent + "30",
-  },
-  eventBannerLabel: { fontSize: FONT_SIZES.xs, color: COLORS.accent, fontWeight: "600" },
-  eventBannerName: { fontSize: FONT_SIZES.lg, fontWeight: "700", color: COLORS.text, marginTop: 2 },
-  eventBannerChange: { fontSize: FONT_SIZES.sm, color: COLORS.accent, marginTop: SPACING.xs },
-  eventPicker: { padding: SPACING.lg },
-  eventOption: {
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  eventOptionText: { fontSize: FONT_SIZES.md, fontWeight: "600", color: COLORS.text },
-  eventOptionDate: { fontSize: FONT_SIZES.sm, color: COLORS.textMuted, marginTop: 2 },
-  actionRow: { flexDirection: "row", gap: SPACING.md },
-  actionButton: {
-    flex: 1,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
+  scrollContent: { padding: SPACING.lg, paddingBottom: 40 },
+  emptyState: {
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 80,
+    gap: SPACING.md,
+  },
+  emptyTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  emptyDesc: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    textAlign: "center",
+    paddingHorizontal: SPACING.xl,
+  },
+  activityItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.sm,
+    gap: SPACING.md,
     ...SHADOWS.sm,
   },
-  actionIcon: { fontSize: 28, marginBottom: SPACING.xs },
-  actionLabel: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, fontWeight: "500" },
+  itemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  itemContent: { flex: 1 },
+  itemText: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  itemDetail: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  itemTime: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textMuted,
+    fontWeight: "500",
+  },
 });

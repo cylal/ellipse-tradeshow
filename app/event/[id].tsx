@@ -28,7 +28,7 @@ function EncounterCard({ encounter, onPress }: { encounter: Encounter; onPress: 
       <View style={styles.encounterHeader}>
         <View style={styles.encounterTitleRow}>
           <Text style={styles.encounterTitle} numberOfLines={1}>{encounter.title}</Text>
-          {encounter.aiSentiment && (
+          {!!encounter.aiSentiment && (
             <Text>{SENTIMENT_EMOJI[encounter.aiSentiment] || ""}</Text>
           )}
         </View>
@@ -43,14 +43,14 @@ function EncounterCard({ encounter, onPress }: { encounter: Encounter; onPress: 
         </View>
       </View>
 
-      {participants && (
+      {!!participants && (
         <Text style={styles.participants} numberOfLines={1}>
           👥 {participants}
         </Text>
       )}
 
-      {encounter.aiSummary && (
-        <Text style={styles.summary} numberOfLines={2}>{encounter.aiSummary}</Text>
+      {!!encounter.aiSummary && (
+        <Text style={styles.summary} numberOfLines={2}>{typeof encounter.aiSummary === "string" ? encounter.aiSummary : (encounter.aiSummary as any)?.summary || ""}</Text>
       )}
 
       {encounter.aiKeyTopics && encounter.aiKeyTopics.length > 0 && (
@@ -67,9 +67,9 @@ function EncounterCard({ encounter, onPress }: { encounter: Encounter; onPress: 
 }
 
 const FILTER_OPTIONS = [
-  { value: "all", label: "Toutes" },
-  { value: "pending", label: "⏳ À sync" },
-  { value: "high", label: "🔴 Haute" },
+  { value: "all", label: "All" },
+  { value: "pending", label: "⏳ To Sync" },
+  { value: "high", label: "🔴 High" },
 ];
 
 export default function EventDetailScreen() {
@@ -98,27 +98,27 @@ export default function EventDetailScreen() {
   const handleSetActive = () => {
     if (activeEvent) {
       setActiveEvent(activeEvent);
-      Alert.alert("Salon actif", `${activeEvent.name} est maintenant le salon actif pour la capture rapide.`);
+      Alert.alert("Active Event", `${activeEvent.name} is now the active event for quick capture.`);
     }
   };
 
   return (
     <View style={styles.container}>
       <Stack.Screen
-        options={{ title: activeEvent?.name || "Salon" }}
+        options={{ title: activeEvent?.name || "Event" }}
       />
 
       {/* Event header */}
       {activeEvent && (
         <View style={styles.header}>
           <Text style={styles.headerName}>{activeEvent.name}</Text>
-          {activeEvent.location && (
+          {!!activeEvent.location && (
             <Text style={styles.headerLocation}>📍 {activeEvent.location}</Text>
           )}
           <View style={styles.headerStats}>
             <View style={styles.headerStat}>
               <Text style={styles.headerStatNum}>{activeEvent.encounterCount}</Text>
-              <Text style={styles.headerStatLabel}>Rencontres</Text>
+              <Text style={styles.headerStatLabel}>Encounters</Text>
             </View>
             <View style={styles.headerStat}>
               <Text style={styles.headerStatNum}>{activeEvent.contactsCollected}</Text>
@@ -126,7 +126,7 @@ export default function EventDetailScreen() {
             </View>
           </View>
           <Button
-            title="Définir comme salon actif"
+            title="Set as Active Event"
             onPress={handleSetActive}
             style={{ marginTop: SPACING.md }}
           />
@@ -162,7 +162,7 @@ export default function EventDetailScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
-            Aucune rencontre enregistrée pour ce salon.
+            No encounters recorded for this event.
           </Text>
         }
       />

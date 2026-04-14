@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ellipse Field Activity",
     "slug": "ellipse-tradeshow",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "la.ellipse.tradeshow",
-      "buildNumber": "3",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Camera is used to capture badges, business cards, and portrait photos.",
         "NSMicrophoneUsageDescription": "Microphone is used to record conversations during trade show encounters.",
@@ -40,6 +40,7 @@
       ]
     },
     "plugins": [
+      ["./plugins/withKotlinVersion", "1.9.25"],
       "expo-router",
       "expo-camera",
       "expo-av",
