@@ -49,6 +49,14 @@ class ApiClient {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
   }
 
+  // Callback to notify the app that re-authentication is needed
+  private _onAuthExpired: (() => void) | null = null;
+
+  /** Register a callback that fires when the token is expired/invalid */
+  onAuthExpired(callback: () => void) {
+    this._onAuthExpired = callback;
+  }
+
   private async request<T>(
     method: string,
     path: string,
@@ -85,9 +93,20 @@ class ApiClient {
 
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
+        const errorMsg = (errorBody as any).error?.message || (errorBody as any).error || `HTTP ${response.status}`;
+
+        // Auto-detect expired/invalid token and force re-login
+        if (response.status === 401 || errorMsg.toLowerCase().includes("token")) {
+          await this.clearToken();
+          if (this._onAuthExpired) {
+            this._onAuthExpired();
+          }
+          throw new ApiError(401, "Session expired — please sign in again", errorBody);
+        }
+
         throw new ApiError(
           response.status,
-          (errorBody as any).error?.message || (errorBody as any).error || `HTTP ${response.status}`,
+          errorMsg,
           errorBody
         );
       }

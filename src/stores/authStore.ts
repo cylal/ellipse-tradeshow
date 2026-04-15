@@ -28,7 +28,14 @@ interface AuthState {
   loginWithBiometric: () => Promise<boolean>;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set, get) => {
+  // Register auth expiry callback — auto-logout when backend rejects token
+  api.onAuthExpired(() => {
+    const { logout } = get();
+    logout();
+  });
+
+  return {
   user: null,
   isAuthenticated: false,
   isLoading: true,

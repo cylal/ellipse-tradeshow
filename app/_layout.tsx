@@ -1,12 +1,32 @@
 import React from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
+import * as FileSystem from "expo-file-system";
 import { COLORS } from "../src/constants/theme";
 import { useAuthStore } from "../src/stores/authStore";
 import { ErrorBoundary } from "../src/components/ErrorBoundary";
+
+/**
+ * iOS Keychain persists across app reinstalls — clear stale tokens on fresh install.
+ * FileSystem.documentDirectory IS cleared on uninstall, so we use a marker file
+ * to detect fresh installs and purge stale Keychain entries.
+ */
+async function clearKeychainIfFreshInstall(): Promise<void> {
+  const markerPath = `${FileSystem.documentDirectory}.ellipse_launched`;
+  const info = await FileSystem.getInfoAsync(markerPath);
+  if (!info.exists) {
+    // Fresh install or reinstall — purge any stale Keychain entries
+    await SecureStore.deleteItemAsync("ellipse_access_token").catch(() => {});
+    await SecureStore.deleteItemAsync("ellipse_user_info").catch(() => {});
+    await SecureStore.deleteItemAsync("ellipse_biometric_enabled").catch(() => {});
+    await SecureStore.deleteItemAsync("ellipse_biometric_gate").catch(() => {});
+    await FileSystem.writeAsStringAsync(markerPath, "1");
+  }
+}
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -44,9 +64,9 @@ export default function RootLayout() {
   const { restoreSession } = useAuthStore();
 
   useEffect(() => {
-    // Try to restore a saved session on app start
-    // restoreSession handles setting isLoading to false
-    restoreSession();
+    // Clear stale Keychain on fresh install (iOS keeps Keychain after uninstall)
+    // then try to restore a saved session
+    clearKeychainIfFreshInstall().then(() => restoreSession());
   }, []);
 
   return (
