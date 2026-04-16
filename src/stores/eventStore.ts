@@ -93,7 +93,8 @@ export const useEventStore = create<EventState>((set, get) => ({
       set({ events, isLoading: false, isOffline: false });
     } catch (err: any) {
       // In offline mode, just show local events
-      set({ isLoading: false, isOffline: true });
+      console.error("[fetchEvents] Error:", err.message, err.status);
+      set({ isLoading: false, isOffline: true, error: err.message });
     }
   },
 

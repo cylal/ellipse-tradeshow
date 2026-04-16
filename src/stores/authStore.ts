@@ -2,6 +2,7 @@ import { create } from "zustand";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { api } from "../services/api";
+import { CONFIG } from "../constants/config";
 
 const USER_KEY = "ellipse_user_info";
 const BIOMETRIC_KEY = "ellipse_biometric_enabled";
@@ -91,6 +92,26 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (hasSaved && !bioEnabled) {
         const user = JSON.parse(userJson!) as User;
         api.setUserInfo(user.name, user.email);
+
+        // Validate token is still accepted by the backend before restoring
+        try {
+          await api.setToken(token!);
+          // Validate token is still accepted by the backend
+          const checkResp = await fetch(
+            `${CONFIG.API_BASE_URL}/events?userRole=superAdmin&userRegion=global&pageSize=1`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (checkResp.status === 401) {
+            // Token expired — force re-login
+            console.warn("[restoreSession] Token expired, forcing re-login");
+            await SecureStore.deleteItemAsync("ellipse_access_token").catch(() => {});
+            set({ isLoading: false, hasSavedSession: false });
+            return false;
+          }
+        } catch {
+          // Network error — allow offline restore
+        }
+
         set({ user, isAuthenticated: true, isLoading: false });
         return true;
       }

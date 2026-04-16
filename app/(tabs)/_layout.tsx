@@ -53,11 +53,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="sync"
         options={{
-          title: "Sync",
-          tabBarLabel: "Sync",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "cloud-upload" : "cloud-upload-outline"} size={24} color={color} />
-          ),
+          href: null, // Hidden — sync now happens per-encounter in the capture flow
         }}
       />
       <Tabs.Screen

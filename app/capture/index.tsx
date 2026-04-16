@@ -17,7 +17,7 @@ const toTitleCase = (s?: string) =>
 
 export default function QuickCaptureScreen() {
   const router = useRouter();
-  const { events: rawEvents, activeEvent, fetchEvents, createEncounter, setActiveEvent } = useEventStore();
+  const { events: rawEvents, activeEvent, fetchEvents, createEncounter, syncEncounter, setActiveEvent } = useEventStore();
   const events = rawEvents || [];
 
   const [selectedEvent, setSelectedEvent] = useState<TradeShowEvent | null>(activeEvent);
@@ -169,18 +169,36 @@ export default function QuickCaptureScreen() {
         }
       }
       const taskCount = localTasks.length;
-      Alert.alert("Success", `Encounter saved${taskCount > 0 ? ` with ${taskCount} task${taskCount > 1 ? "s" : ""}` : ""}!`, [
-        {
-          text: "OK",
-          onPress: () => {
-            setTitle("");
-            setManualNotes("");
-            setParticipants([]);
-            setAudioData(null);
-            setLocalTasks([]);
-          },
-        },
-      ]);
+      const resetForm = () => {
+        setTitle("");
+        setManualNotes("");
+        setParticipants([]);
+        setAudioData(null);
+        setLocalTasks([]);
+      };
+
+      const handleSyncNow = async () => {
+        if (!result?.id) return;
+        try {
+          await syncEncounter(result.id);
+          Alert.alert("Synced!", "Encounter synced to CRM.", [{ text: "OK", onPress: resetForm }]);
+        } catch (syncErr: any) {
+          Alert.alert(
+            "Sync failed",
+            syncErr.message || "Could not sync to CRM. You can retry later from the encounter list.",
+            [{ text: "OK", onPress: resetForm }]
+          );
+        }
+      };
+
+      Alert.alert(
+        "Encounter saved" + (taskCount > 0 ? ` with ${taskCount} task${taskCount > 1 ? "s" : ""}` : ""),
+        "Sync this encounter to the CRM now?",
+        [
+          { text: "Later", style: "cancel", onPress: resetForm },
+          { text: "Sync to CRM", onPress: handleSyncNow },
+        ]
+      );
     } catch (err: any) {
       Alert.alert("Error", err.message || "Unable to save.");
     } finally {

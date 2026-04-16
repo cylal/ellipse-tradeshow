@@ -80,6 +80,10 @@ function formatDate(dateStr: string): string {
         parseInt(dateStr.slice(4, 6)) - 1,
         parseInt(dateStr.slice(6, 8))
       );
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      // Parse YYYY-MM-DD as local date (not UTC)
+      const [y, m, day] = dateStr.split("-");
+      d = new Date(parseInt(y), parseInt(m) - 1, parseInt(day));
     } else {
       d = new Date(dateStr);
     }
