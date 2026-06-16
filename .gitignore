@@ -18,3 +18,10 @@ android/
 
 # EAS
 .eas/
+
+# SEC-04 — secrets de signature iOS : ne JAMAIS committer.
+# Le mot de passe du certificat doit vivre dans EAS Secrets, pas sur disque.
+credentials.json
+credentials/
+*.p12
+*.mobileprovision
